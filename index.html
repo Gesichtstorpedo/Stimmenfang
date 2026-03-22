@@ -533,10 +533,10 @@ const startScreen = document.getElementById('startScreen');
     function playSfx(audioEl, volume = 1.0) {
       if (!audioEl) return;
       try {
-        audioEl.pause();
-        audioEl.currentTime = 0;
         audioEl.volume = volume;
-        audioEl.play().catch(() => {});
+        audioEl.currentTime = 0;
+        const p = audioEl.play();
+        if (p && typeof p.catch === 'function') p.catch(() => {});
       } catch (e) {}
     }
     let currentTrack = 0;
@@ -546,10 +546,10 @@ const startScreen = document.getElementById('startScreen');
     let scorePulseUntil = 0;
 
     function updateObstacleDifficulty() {
-      if (score >= 200) obstacleTargetCount = 10;
-      else if (score >= 120) obstacleTargetCount = 8;
-      else if (score >= 60) obstacleTargetCount = 6;
-      else obstacleTargetCount = 5;
+      if (score >= 200) obstacleTargetCount = 8;
+      else if (score >= 120) obstacleTargetCount = 6;
+      else if (score >= 60) obstacleTargetCount = 4;
+      else obstacleTargetCount = 3;
     }
 
     function isTouchDevice() {
@@ -1467,7 +1467,7 @@ const startScreen = document.getElementById('startScreen');
         text: `+${points}`,
         alpha: 1,
         life: 0,
-        maxLife: points >= 150 ? 54 : points >= 100 ? 48 : 42,
+        maxLife: points >= 150 ? 34 : points >= 100 ? 30 : 26,
         size: points >= 150 ? 30 : points >= 100 ? 26 : points >= 50 ? 22 : 18,
         color: points >= 150 ? '#facc15' : points >= 100 ? '#fde047' : points >= 50 ? '#fef08a' : '#ffffff',
         glow: points >= 100
@@ -1515,11 +1515,11 @@ const startScreen = document.getElementById('startScreen');
 
     function pulseScore() {
       if (!scoreEl) return;
-      scoreEl.style.transform = 'scale(1.12)';
-      scoreEl.style.transition = 'transform 0.12s ease';
-      setTimeout(() => {
+      scoreEl.style.transform = 'scale(1.05)';
+      clearTimeout(window.__scorePulseTimer);
+      window.__scorePulseTimer = setTimeout(() => {
         if (scoreEl) scoreEl.style.transform = 'scale(1)';
-      }, 140);
+      }, 90);
     }
 
     function updatePlayer() {
