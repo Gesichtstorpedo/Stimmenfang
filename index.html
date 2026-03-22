@@ -372,7 +372,7 @@
         <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
           <div style="text-align:left; max-width:520px;">
             <div style="font-size:13px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.88; margin-bottom:10px;">Stimmenfang Wahlspiel</div>
-            <h1 style="font-size:54px; line-height:0.95; margin:0 0 10px 0;">Stimmenfang</h1><div style="margin-top:8px; font-size:13px; letter-spacing:0.12em; opacity:0.85;">Version 48</div>
+            <h1 style="font-size:54px; line-height:0.95; margin:0 0 10px 0;">Stimmenfang</h1><div style="margin-top:8px; font-size:13px; letter-spacing:0.12em; opacity:0.85;">Version 49</div>
             <p style="font-size:18px; margin:0 0 16px 0; opacity:0.95;">Sammle Stimmen, weich Hindernissen aus und hol dir den Platz im Scoreboard.</p>
           </div>
 
@@ -474,8 +474,8 @@ const startScreen = document.getElementById('startScreen');
     const voteImg = new Image();
     const hitImg = new Image();
 
-    const HIGHSCORE_KEY = 'stimmenfang_highscore_Version 48_1';
-    const LEADERBOARD_KEY = 'stimmenfang_leaderboard_Version 48_1';
+    const HIGHSCORE_KEY = 'stimmenfang_highscore_Version 49_1';
+    const LEADERBOARD_KEY = 'stimmenfang_leaderboard_Version 49_1';
     let highscore = Number(localStorage.getItem(HIGHSCORE_KEY) || 0);
     highscoreEl.textContent = highscore;
 
@@ -507,11 +507,15 @@ const startScreen = document.getElementById('startScreen');
     const tracks = [document.getElementById('bgm1')];
     const pickupSfx = document.getElementById('pickupSfx');
     const hitSfx = document.getElementById('hitSfx');
+    const pickupPool = [pickupSfx, pickupSfx.cloneNode(true), pickupSfx.cloneNode(true)];
+    const hitPool = [hitSfx, hitSfx.cloneNode(true)];
+    let pickupPoolIndex = 0;
+    let hitPoolIndex = 0;
     let audioUnlocked = false;
 
     async function unlockAudio() {
       if (audioUnlocked) return;
-      const sounds = [pickupSfx, hitSfx, ...tracks].filter(Boolean);
+      const sounds = [...pickupPool, ...hitPool, ...tracks].filter(Boolean);
 
       for (const audio of sounds) {
         try {
@@ -535,9 +539,19 @@ const startScreen = document.getElementById('startScreen');
     function playSfx(audioEl, volume = 1.0) {
       if (!audioEl) return;
       try {
-        audioEl.volume = volume;
-        audioEl.currentTime = 0;
-        const p = audioEl.play();
+        let sound = audioEl;
+        if (audioEl === pickupSfx) {
+          sound = pickupPool[pickupPoolIndex % pickupPool.length];
+          pickupPoolIndex++;
+        } else if (audioEl === hitSfx) {
+          sound = hitPool[hitPoolIndex % hitPool.length];
+          hitPoolIndex++;
+        }
+
+        sound.pause();
+        sound.currentTime = 0;
+        sound.volume = volume;
+        const p = sound.play();
         if (p && typeof p.catch === 'function') p.catch(() => {});
       } catch (e) {}
     }
@@ -831,6 +845,20 @@ const startScreen = document.getElementById('startScreen');
       musicStarted = true;
       setTrackVolume(Number(volumeSlider.value) * 0.4);
       playCurrentTrack();
+    }
+
+    function forceStartMusic() {
+      const track = tracks[0];
+      if (!track) return;
+      musicStarted = true;
+      setTrackVolume(Number(volumeSlider.value) * 0.4);
+      track.loop = true;
+      try {
+        track.pause();
+        track.currentTime = 0;
+        const p = track.play();
+        if (p && typeof p.catch === 'function') p.catch(() => {});
+      } catch (e) {}
     }
 
     function ensureMusicPlaying() {
@@ -1598,7 +1626,7 @@ const startScreen = document.getElementById('startScreen');
           scoreEl.textContent = score;
           spawnFloatingText(hitX, hitY - 8, points);
           pulseScore();
-          playSfx(pickupSfx, mobilePerformanceMode ? 0.36 : 1.08);
+          playSfx(pickupSfx, mobilePerformanceMode ? 0.22 : 0.95);
           comboChain += 1;
           spawnVote();
 
@@ -1619,7 +1647,7 @@ const startScreen = document.getElementById('startScreen');
           waitingForRestart = true;
           gameRunning = false;
           comboChain = 0;
-          playSfx(hitSfx, 0.72);
+          playSfx(hitSfx, mobilePerformanceMode ? 0.65 : 0.8);
           setTimeout(ensureMusicPlaying, 80);
           player.dx = 0;
           player.dy = 0;
@@ -1697,7 +1725,7 @@ const startScreen = document.getElementById('startScreen');
 
       rebuildRound();
       gameRunning = true;
-      ensureMusicPlaying();
+      forceStartMusic();
       setTimeout(ensureMusicPlaying, 80);
       setTimeout(ensureMusicPlaying, 220);
       cancelAnimationFrame(animationId);
@@ -1818,8 +1846,9 @@ const startScreen = document.getElementById('startScreen');
     startBtn.addEventListener('click', async () => {
       await unlockAudio();
       startGame();
-      ensureMusicPlaying();
+      forceStartMusic();
       setTimeout(ensureMusicPlaying, 120);
+      setTimeout(ensureMusicPlaying, 300);
     });
 
     restartBtn.addEventListener('click', async () => {
@@ -1839,9 +1868,9 @@ const startScreen = document.getElementById('startScreen');
 
       if (waitingForRestart) {
         continueAfterHit();
-        ensureMusicPlaying();
+        forceStartMusic();
         setTimeout(ensureMusicPlaying, 120);
-        setTimeout(ensureMusicPlaying, 260);
+        setTimeout(ensureMusicPlaying, 300);
       }
     });
 
@@ -1870,29 +1899,6 @@ const startScreen = document.getElementById('startScreen');
     drawBackground();
     drawOverlay('Bereit?');
   </script>
-
-<script>
-document.addEventListener('touchstart', () => {
-  const sounds = [pickupSfx, hitSfx];
-  sounds.forEach(s => {
-    try {
-      s.play().then(() => {
-        s.pause();
-        s.currentTime = 0;
-      }).catch(()=>{});
-    } catch(e){}
-  });
-}, { once: true });
-
-// Safe play function
-function playSound(sound) {
-  try {
-    sound.currentTime = 0;
-    sound.play().catch(()=>{});
-  } catch(e){}
-}
-</script>
-
 
 </body>
 </html>
