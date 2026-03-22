@@ -505,8 +505,32 @@ const startScreen = document.getElementById('startScreen');
     const tracks = [document.getElementById('bgm1')];
     const pickupSfx = document.getElementById('pickupSfx');
     const hitSfx = document.getElementById('hitSfx');
+    let audioUnlocked = false;
 
-    function playSfx(audioEl, volume = 0.8) {
+    async function unlockAudio() {
+      if (audioUnlocked) return;
+      const sounds = [pickupSfx, hitSfx, ...tracks].filter(Boolean);
+
+      for (const audio of sounds) {
+        try {
+          const wasMuted = audio.muted;
+          const oldVolume = audio.volume;
+          audio.muted = true;
+          audio.volume = 0;
+          audio.currentTime = 0;
+          await audio.play().catch(() => {});
+          audio.pause();
+          audio.currentTime = 0;
+          audio.muted = wasMuted;
+          audio.volume = oldVolume;
+        } catch (e) {}
+      }
+
+      audioUnlocked = true;
+    }
+
+
+    function playSfx(audioEl, volume = 1.0) {
       if (!audioEl) return;
       try {
         audioEl.pause();
@@ -1765,7 +1789,8 @@ const startScreen = document.getElementById('startScreen');
 
     startBtn.addEventListener('click', startGame);
 
-    restartBtn.addEventListener('click', () => {
+    restartBtn.addEventListener('click', async () => {
+      await unlockAudio();
       if (gameOverShown || lives <= 0) {
         gameWrap.style.display = 'none';
         startScreen.style.display = 'block';
