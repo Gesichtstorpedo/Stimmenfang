@@ -348,8 +348,10 @@
 <meta name="description" content="Stimmenfang – sammle Wahlzettel, weiche Hindernissen aus und hol dir den Highscore.">
 
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="Stimmenfang">
 <meta property="og:image" content="https://gesichtstorpedo.github.io/Stimmenfang/share_v3.png">
-<meta property="og:url" content="https://gesichtstorpedo.github.io/Stimmenfang/">
+<meta property="og:url" content="https://gesichtstorpedo.github.io/Stimmenfang">
+<link rel="canonical" href="https://gesichtstorpedo.github.io/Stimmenfang">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Stimmenfang">
 <meta name="twitter:description" content="Stimmenfang – sammle Wahlzettel, weiche Hindernissen aus und hol dir den Highscore.">
@@ -370,7 +372,7 @@
         <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
           <div style="text-align:left; max-width:520px;">
             <div style="font-size:13px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.88; margin-bottom:10px;">Stimmenfang Wahlspiel</div>
-            <h1 style="font-size:54px; line-height:0.95; margin:0 0 10px 0;">Stimmenfang</h1><div style="margin-top:8px; font-size:13px; letter-spacing:0.12em; opacity:0.85;">Version 43</div>
+            <h1 style="font-size:54px; line-height:0.95; margin:0 0 10px 0;">Stimmenfang</h1><div style="margin-top:8px; font-size:13px; letter-spacing:0.12em; opacity:0.85;">Version 44</div>
             <p style="font-size:18px; margin:0 0 16px 0; opacity:0.95;">Sammle Stimmen, weich Hindernissen aus und hol dir den Platz im Scoreboard.</p>
           </div>
 
@@ -472,8 +474,8 @@ const startScreen = document.getElementById('startScreen');
     const voteImg = new Image();
     const hitImg = new Image();
 
-    const HIGHSCORE_KEY = 'stimmenfang_highscore_Version 43_1';
-    const LEADERBOARD_KEY = 'stimmenfang_leaderboard_Version 43_1';
+    const HIGHSCORE_KEY = 'stimmenfang_highscore_Version 44_1';
+    const LEADERBOARD_KEY = 'stimmenfang_leaderboard_Version 44_1';
     let highscore = Number(localStorage.getItem(HIGHSCORE_KEY) || 0);
     highscoreEl.textContent = highscore;
 
@@ -546,11 +548,13 @@ const startScreen = document.getElementById('startScreen');
     let scorePulseUntil = 0;
 
     function updateObstacleDifficulty() {
-      if (score >= 200) obstacleTargetCount = 8;
-      else if (score >= 120) obstacleTargetCount = 6;
+      if (score >= 200) obstacleTargetCount = 6;
+      else if (score >= 120) obstacleTargetCount = 5;
       else if (score >= 60) obstacleTargetCount = 4;
       else obstacleTargetCount = 3;
     }
+
+    const mobilePerformanceMode = window.matchMedia('(pointer: coarse)').matches || /iPhone|iPad|Android/i.test(navigator.userAgent);
 
     function isTouchDevice() {
       return window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -894,6 +898,7 @@ const startScreen = document.getElementById('startScreen');
       if (joystickKnob) joystickKnob.style.transform = 'translate(-50%, -50%)';
       waitingForRestart = false;
       gameOverShown = false;
+      musicStarted = false;
       restartBtn.style.display = 'none';
       restartBtn.textContent = 'Neustart';
       invulnerableUntil = Date.now() + INVULN_MS;
@@ -1461,6 +1466,7 @@ const startScreen = document.getElementById('startScreen');
     }
 
     function spawnFloatingText(x, y, points) {
+      if (mobilePerformanceMode) return;
       floatingTexts.push({
         x: x,
         y: y,
@@ -1501,6 +1507,7 @@ const startScreen = document.getElementById('startScreen');
     }
 
     function drawComboLabel() {
+      if (mobilePerformanceMode) return;
       if (comboChain <= 0) return;
       ctx.save();
       ctx.textAlign = 'left';
@@ -1515,6 +1522,7 @@ const startScreen = document.getElementById('startScreen');
 
     function pulseScore() {
       if (!scoreEl) return;
+      if (mobilePerformanceMode) return;
       scoreEl.style.transform = 'scale(1.05)';
       clearTimeout(window.__scorePulseTimer);
       window.__scorePulseTimer = setTimeout(() => {
@@ -1578,7 +1586,7 @@ const startScreen = document.getElementById('startScreen');
           scoreEl.textContent = score;
           spawnFloatingText(hitX, hitY - 8, points);
           pulseScore();
-          playSfx(pickupSfx, 0.9);
+          playSfx(pickupSfx, mobilePerformanceMode ? 0.65 : 0.9);
           comboChain += 1;
           spawnVote();
 
@@ -1589,7 +1597,6 @@ const startScreen = document.getElementById('startScreen');
           }
 
           updateObstacleDifficulty();
-          while (obstacles.length < obstacleTargetCount) spawnObstacle();
         }
       }
 
@@ -1630,7 +1637,12 @@ const startScreen = document.getElementById('startScreen');
 
     function loop() {
       updateObstacleDifficulty();
-      while (obstacles.length < obstacleTargetCount) spawnObstacle();
+      const refillLimit = mobilePerformanceMode ? 1 : 99;
+      let refillCount = 0;
+      while (obstacles.length < obstacleTargetCount && refillCount < refillLimit) {
+        spawnObstacle();
+        refillCount++;
+      }
       drawBackground();
       updatePlayer();
       updateObstacles();
@@ -1791,6 +1803,7 @@ const startScreen = document.getElementById('startScreen');
 
     restartBtn.addEventListener('click', async () => {
       await unlockAudio();
+      startMusicOnce();
       if (gameOverShown || lives <= 0) {
         gameWrap.style.display = 'none';
         startScreen.style.display = 'block';
