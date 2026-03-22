@@ -372,7 +372,7 @@
         <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
           <div style="text-align:left; max-width:520px;">
             <div style="font-size:13px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.88; margin-bottom:10px;">Stimmenfang Wahlspiel</div>
-            <h1 style="font-size:54px; line-height:0.95; margin:0 0 10px 0;">Stimmenfang</h1><div style="margin-top:8px; font-size:13px; letter-spacing:0.12em; opacity:0.85;">Version 46</div>
+            <h1 style="font-size:54px; line-height:0.95; margin:0 0 10px 0;">Stimmenfang</h1><div style="margin-top:8px; font-size:13px; letter-spacing:0.12em; opacity:0.85;">Version 47</div>
             <p style="font-size:18px; margin:0 0 16px 0; opacity:0.95;">Sammle Stimmen, weich Hindernissen aus und hol dir den Platz im Scoreboard.</p>
           </div>
 
@@ -474,8 +474,8 @@ const startScreen = document.getElementById('startScreen');
     const voteImg = new Image();
     const hitImg = new Image();
 
-    const HIGHSCORE_KEY = 'stimmenfang_highscore_Version 46_1';
-    const LEADERBOARD_KEY = 'stimmenfang_leaderboard_Version 46_1';
+    const HIGHSCORE_KEY = 'stimmenfang_highscore_Version 47_1';
+    const LEADERBOARD_KEY = 'stimmenfang_leaderboard_Version 47_1';
     let highscore = Number(localStorage.getItem(HIGHSCORE_KEY) || 0);
     highscoreEl.textContent = highscore;
 
@@ -548,7 +548,7 @@ const startScreen = document.getElementById('startScreen');
     let scorePulseUntil = 0;
 
     function updateObstacleDifficulty() {
-      if (score >= 200) obstacleTargetCount = 7;
+      if (score >= 200) obstacleTargetCount = 6;
       else if (score >= 120) obstacleTargetCount = 6;
       else if (score >= 60) obstacleTargetCount = 5;
       else obstacleTargetCount = 4;
@@ -838,9 +838,12 @@ const startScreen = document.getElementById('startScreen');
       if (!track) return;
       setTrackVolume(Number(volumeSlider.value));
       track.loop = true;
-      if (track.paused) {
-        track.play().catch(() => {});
-      }
+      try {
+        if (track.paused || track.ended) {
+          const p = track.play();
+          if (p && typeof p.catch === 'function') p.catch(() => {});
+        }
+      } catch (e) {}
     }
 
     function stopAllTracks() {
@@ -1454,7 +1457,7 @@ const startScreen = document.getElementById('startScreen');
         if (hitImg.complete && hitImg.naturalWidth > 0) {
           ctx.save();
           ctx.imageSmoothingEnabled = false;
-          const hitScale = mobilePerformanceMode ? 2.0 : 2.5;
+          const hitScale = mobilePerformanceMode ? 1.7 : 2.5;
           const drawW = o.size * hitScale;
           const drawH = o.size * hitScale;
           ctx.drawImage(hitImg, o.x - drawW / 2, o.y - drawH / 2, drawW, drawH);
@@ -1595,7 +1598,7 @@ const startScreen = document.getElementById('startScreen');
           scoreEl.textContent = score;
           spawnFloatingText(hitX, hitY - 8, points);
           pulseScore();
-          playSfx(pickupSfx, mobilePerformanceMode ? 0.45 : 0.9);
+          playSfx(pickupSfx, mobilePerformanceMode ? 0.3 : 0.9);
           comboChain += 1;
           spawnVote();
 
@@ -1647,7 +1650,7 @@ const startScreen = document.getElementById('startScreen');
 
     function loop() {
       updateObstacleDifficulty();
-      const refillLimit = mobilePerformanceMode ? 0 : 99;
+      const refillLimit = mobilePerformanceMode ? 1 : 99;
       let refillCount = 0;
       while (obstacles.length < obstacleTargetCount && refillCount < refillLimit) {
         spawnObstacle();
@@ -1694,6 +1697,9 @@ const startScreen = document.getElementById('startScreen');
 
       rebuildRound();
       gameRunning = true;
+      ensureMusicPlaying();
+      setTimeout(ensureMusicPlaying, 80);
+      setTimeout(ensureMusicPlaying, 220);
       cancelAnimationFrame(animationId);
       loop();
     }
@@ -1835,6 +1841,7 @@ const startScreen = document.getElementById('startScreen');
         continueAfterHit();
         ensureMusicPlaying();
         setTimeout(ensureMusicPlaying, 120);
+        setTimeout(ensureMusicPlaying, 260);
       }
     });
 
