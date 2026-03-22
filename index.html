@@ -372,7 +372,7 @@
         <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
           <div style="text-align:left; max-width:520px;">
             <div style="font-size:13px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.88; margin-bottom:10px;">Stimmenfang Wahlspiel</div>
-            <h1 style="font-size:54px; line-height:0.95; margin:0 0 10px 0;">Stimmenfang</h1><div style="margin-top:8px; font-size:13px; letter-spacing:0.12em; opacity:0.85;">Version 45</div>
+            <h1 style="font-size:54px; line-height:0.95; margin:0 0 10px 0;">Stimmenfang</h1><div style="margin-top:8px; font-size:13px; letter-spacing:0.12em; opacity:0.85;">Version 46</div>
             <p style="font-size:18px; margin:0 0 16px 0; opacity:0.95;">Sammle Stimmen, weich Hindernissen aus und hol dir den Platz im Scoreboard.</p>
           </div>
 
@@ -474,8 +474,8 @@ const startScreen = document.getElementById('startScreen');
     const voteImg = new Image();
     const hitImg = new Image();
 
-    const HIGHSCORE_KEY = 'stimmenfang_highscore_Version 45_1';
-    const LEADERBOARD_KEY = 'stimmenfang_leaderboard_Version 45_1';
+    const HIGHSCORE_KEY = 'stimmenfang_highscore_Version 46_1';
+    const LEADERBOARD_KEY = 'stimmenfang_leaderboard_Version 46_1';
     let highscore = Number(localStorage.getItem(HIGHSCORE_KEY) || 0);
     highscoreEl.textContent = highscore;
 
@@ -831,6 +831,16 @@ const startScreen = document.getElementById('startScreen');
       musicStarted = true;
       setTrackVolume(Number(volumeSlider.value));
       playCurrentTrack();
+    }
+
+    function ensureMusicPlaying() {
+      const track = tracks[0];
+      if (!track) return;
+      setTrackVolume(Number(volumeSlider.value));
+      track.loop = true;
+      if (track.paused) {
+        track.play().catch(() => {});
+      }
     }
 
     function stopAllTracks() {
@@ -1607,6 +1617,7 @@ const startScreen = document.getElementById('startScreen');
           gameRunning = false;
           comboChain = 0;
           playSfx(hitSfx, 0.6);
+          setTimeout(ensureMusicPlaying, 80);
           player.dx = 0;
           player.dy = 0;
           cancelAnimationFrame(animationId);
@@ -1798,14 +1809,19 @@ const startScreen = document.getElementById('startScreen');
 
     bindJoystick();
 
-    startBtn.addEventListener('click', startGame);
+    startBtn.addEventListener('click', async () => {
+      await unlockAudio();
+      startGame();
+      ensureMusicPlaying();
+      setTimeout(ensureMusicPlaying, 120);
+    });
 
     restartBtn.addEventListener('click', async () => {
       await unlockAudio();
-      stopAllTracks();
-      musicStarted = false;
-      startMusicOnce();
+
       if (gameOverShown || lives <= 0) {
+        stopAllTracks();
+        musicStarted = false;
         gameWrap.style.display = 'none';
         startScreen.style.display = 'block';
         restartBtn.style.display = 'none';
@@ -1817,6 +1833,8 @@ const startScreen = document.getElementById('startScreen');
 
       if (waitingForRestart) {
         continueAfterHit();
+        ensureMusicPlaying();
+        setTimeout(ensureMusicPlaying, 120);
       }
     });
 
@@ -1825,7 +1843,11 @@ const startScreen = document.getElementById('startScreen');
     });
 
     if (fullscreenBtn) {
-      fullscreenBtn.addEventListener('click', enterFullscreen);
+      fullscreenBtn.addEventListener('click', async () => {
+        await unlockAudio();
+        enterFullscreen();
+        ensureMusicPlaying();
+      });
     }
 
     window.addEventListener('resize', updateResponsiveUI);
