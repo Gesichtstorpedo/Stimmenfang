@@ -374,7 +374,7 @@
         <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
           <div style="text-align:left; max-width:520px;">
             <div style="font-size:13px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.88; margin-bottom:10px;">Stimmenfang Wahlspiel</div>
-            <h1 style="font-size:54px; line-height:0.95; margin:0 0 10px 0;">Stimmenfang</h1><div style="margin-top:8px; font-size:13px; letter-spacing:0.12em; opacity:0.85;">Version 55</div>
+            <h1 style="font-size:54px; line-height:0.95; margin:0 0 10px 0;">Stimmenfang</h1><div style="margin-top:8px; font-size:13px; letter-spacing:0.12em; opacity:0.85;">Version 56</div>
             <p style="font-size:18px; margin:0 0 16px 0; opacity:0.95;">Sammle Stimmen, weich Hindernissen aus und hol dir den Platz im Scoreboard.</p>
           </div>
 
@@ -445,7 +445,7 @@
     // Score-basierte Gegnerstaffelung
     const BASE_ENEMY_COUNT = 4;
     const GOLD_VOTE_CHANCE = 0.09;
-    const GOLD_VOTE_POINTS = 50;
+    const GOLD_VOTE_POINTS = 300;
     const SHIELD_RESPAWN_MIN_MS = 10000;
     const SHIELD_RESPAWN_MAX_MS = 16000;
     const LIFE_MAX = 5;
@@ -476,8 +476,8 @@ const startScreen = document.getElementById('startScreen');
     const voteImg = new Image();
     const hitImg = new Image();
 
-    const HIGHSCORE_KEY = 'stimmenfang_highscore_Version 55_1';
-    const LEADERBOARD_KEY = 'stimmenfang_leaderboard_Version 55_1';
+    const HIGHSCORE_KEY = 'stimmenfang_highscore_Version 56_1';
+    const LEADERBOARD_KEY = 'stimmenfang_leaderboard_Version 56_1';
     let highscore = Number(localStorage.getItem(HIGHSCORE_KEY) || 0);
     highscoreEl.textContent = highscore;
 
@@ -584,7 +584,7 @@ const startScreen = document.getElementById('startScreen');
     }
     let currentTrack = 0;
     let comboChain = 0;
-    const comboSteps = [10, 20, 30, 50, 75, 100, 150, 200];
+    const comboSteps = [10, 20, 30, 300, 75, 100, 150, 200];
     const floatingTexts = [];
     let scorePulseUntil = 0;
 
@@ -1515,7 +1515,7 @@ const startScreen = document.getElementById('startScreen');
 
       // Fahrerhaus
       ctx.fillStyle = '#334155';
-      ctx.fillRect(tx - 50, ty - 24, 40, 24);
+      ctx.fillRect(tx - 300, ty - 24, 40, 24);
 
       // Räder
       ctx.fillStyle = '#111';
@@ -1537,7 +1537,7 @@ const startScreen = document.getElementById('startScreen');
         window.cars = [
           {x: -100, speed: 1.2, dir: 1, color: '#ef4444'},
           {x: -300, speed: 0.9, dir: 1, color: '#3b82f6'},
-          {x: canvas.width + 50, speed: -1.4, dir: -1, color: '#22c55e'},
+          {x: canvas.width + 300, speed: -1.4, dir: -1, color: '#22c55e'},
           {x: canvas.width + 200, speed: -1.1, dir: -1, color: '#f59e0b'},
           {x: canvas.width + 350, speed: -0.8, dir: -1, color: '#a855f7'},
         ];
