@@ -282,24 +282,26 @@
       }
       .joystickWrap {
         display: flex !important;
-        margin-top: 2px;
-        padding-bottom: max(2px, env(safe-area-inset-bottom));
+        margin-top: 12px;
+        padding-bottom: max(8px, env(safe-area-inset-bottom));
+        min-height: 132px;
+        align-items: flex-end;
       }
       .joystick {
-        width: 82px;
-        height: 82px;
+        width: 120px;
+        height: 120px;
       }
       .joystick::before {
-        top: 10px;
-        bottom: 10px;
+        top: 14px;
+        bottom: 14px;
       }
       .joystick::after {
-        left: 10px;
-        right: 10px;
+        left: 14px;
+        right: 14px;
       }
       .joystickKnob {
-        width: 30px;
-        height: 30px;
+        width: 44px;
+        height: 44px;
       }
       .mobile-only {
         display: inline-flex !important;
@@ -327,9 +329,9 @@
           min-height: 24px !important;
         }
         #game {
-          width: min(100vw - 6px, calc(100svh - 148px));
-          max-width: min(100vw - 6px, calc(100svh - 148px));
-          max-height: calc(100svh - 148px);
+          width: min(100vw - 6px, calc(100svh - 198px));
+          max-width: min(100vw - 6px, calc(100svh - 198px));
+          max-height: calc(100svh - 198px);
         }
       }
       #gameWrap .hint {
@@ -372,7 +374,7 @@
         <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
           <div style="text-align:left; max-width:520px;">
             <div style="font-size:13px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.88; margin-bottom:10px;">Stimmenfang Wahlspiel</div>
-            <h1 style="font-size:54px; line-height:0.95; margin:0 0 10px 0;">Stimmenfang</h1><div style="margin-top:8px; font-size:13px; letter-spacing:0.12em; opacity:0.85;">Version 49</div>
+            <h1 style="font-size:54px; line-height:0.95; margin:0 0 10px 0;">Stimmenfang</h1><div style="margin-top:8px; font-size:13px; letter-spacing:0.12em; opacity:0.85;">Version 50</div>
             <p style="font-size:18px; margin:0 0 16px 0; opacity:0.95;">Sammle Stimmen, weich Hindernissen aus und hol dir den Platz im Scoreboard.</p>
           </div>
 
@@ -440,15 +442,8 @@
   <audio id="bgm3" src="track3.mp3" preload="auto"></audio>
 
   <script>
-    // Dynamic difficulty
-    let maxEnemies = 5;
-    let gameStartTime = Date.now();
-
-    function updateDifficulty() {
-      const elapsed = (Date.now() - gameStartTime) / 1000;
-      if (elapsed > 30) maxEnemies = 8;
-      if (elapsed > 60) maxEnemies = 10;
-    }
+    // Score-basierte Gegnerstaffelung
+    const BASE_ENEMY_COUNT = 4;
 
 const startScreen = document.getElementById('startScreen');
     const gameWrap = document.getElementById('gameWrap');
@@ -474,8 +469,8 @@ const startScreen = document.getElementById('startScreen');
     const voteImg = new Image();
     const hitImg = new Image();
 
-    const HIGHSCORE_KEY = 'stimmenfang_highscore_Version 49_1';
-    const LEADERBOARD_KEY = 'stimmenfang_leaderboard_Version 49_1';
+    const HIGHSCORE_KEY = 'stimmenfang_highscore_Version 50_1';
+    const LEADERBOARD_KEY = 'stimmenfang_leaderboard_Version 50_1';
     let highscore = Number(localStorage.getItem(HIGHSCORE_KEY) || 0);
     highscoreEl.textContent = highscore;
 
@@ -507,8 +502,14 @@ const startScreen = document.getElementById('startScreen');
     const tracks = [document.getElementById('bgm1')];
     const pickupSfx = document.getElementById('pickupSfx');
     const hitSfx = document.getElementById('hitSfx');
-    const pickupPool = [pickupSfx, pickupSfx.cloneNode(true), pickupSfx.cloneNode(true)];
-    const hitPool = [hitSfx, hitSfx.cloneNode(true)];
+    const pickupPool = [
+      pickupSfx,
+      pickupSfx.cloneNode(true),
+      pickupSfx.cloneNode(true),
+      pickupSfx.cloneNode(true),
+      pickupSfx.cloneNode(true)
+    ];
+    const hitPool = [hitSfx, hitSfx.cloneNode(true), hitSfx.cloneNode(true)];
     let pickupPoolIndex = 0;
     let hitPoolIndex = 0;
     let audioUnlocked = false;
@@ -536,21 +537,28 @@ const startScreen = document.getElementById('startScreen');
     }
 
 
+    function getReadySound(pool, indexRefName) {
+      const now = performance.now();
+      const ready = pool.find(sound => sound.paused || sound.ended || !sound.__busyUntil || sound.__busyUntil <= now);
+      if (ready) return ready;
+      const index = window[indexRefName] % pool.length;
+      window[indexRefName] = (window[indexRefName] + 1) % pool.length;
+      return pool[index];
+    }
+
     function playSfx(audioEl, volume = 1.0) {
       if (!audioEl) return;
       try {
         let sound = audioEl;
         if (audioEl === pickupSfx) {
-          sound = pickupPool[pickupPoolIndex % pickupPool.length];
-          pickupPoolIndex++;
+          sound = getReadySound(pickupPool, 'pickupPoolIndex');
         } else if (audioEl === hitSfx) {
-          sound = hitPool[hitPoolIndex % hitPool.length];
-          hitPoolIndex++;
+          sound = getReadySound(hitPool, 'hitPoolIndex');
         }
 
-        sound.pause();
-        sound.currentTime = 0;
         sound.volume = volume;
+        sound.currentTime = 0;
+        sound.__busyUntil = performance.now() + ((sound.duration && Number.isFinite(sound.duration) ? sound.duration : 0.18) * 1000);
         const p = sound.play();
         if (p && typeof p.catch === 'function') p.catch(() => {});
       } catch (e) {}
@@ -562,10 +570,21 @@ const startScreen = document.getElementById('startScreen');
     let scorePulseUntil = 0;
 
     function updateObstacleDifficulty() {
-      if (score >= 200) obstacleTargetCount = 6;
-      else if (score >= 120) obstacleTargetCount = 6;
-      else if (score >= 60) obstacleTargetCount = 5;
-      else obstacleTargetCount = 4;
+      obstacleTargetCount = BASE_ENEMY_COUNT;
+      if (score >= 10000) obstacleTargetCount += 2;
+      if (score >= 20000) obstacleTargetCount += 2;
+    }
+
+    function syncObstacleCount() {
+      updateObstacleDifficulty();
+
+      while (obstacles.length < obstacleTargetCount) {
+        spawnObstacle();
+      }
+
+      while (obstacles.length > obstacleTargetCount) {
+        obstacles.pop();
+      }
     }
 
     const mobilePerformanceMode = window.matchMedia('(pointer: coarse)').matches || /iPhone|iPad|Android/i.test(navigator.userAgent);
@@ -917,8 +936,7 @@ const startScreen = document.getElementById('startScreen');
 
     function resetObstacles() {
       obstacles.length = 0;
-      updateObstacleDifficulty();
-      for (let i = 0; i < obstacleTargetCount; i++) spawnObstacle();
+      syncObstacleCount();
     }
 
     function rebuildRound() {
@@ -1626,7 +1644,6 @@ const startScreen = document.getElementById('startScreen');
           scoreEl.textContent = score;
           spawnFloatingText(hitX, hitY - 8, points);
           pulseScore();
-          playSfx(pickupSfx, mobilePerformanceMode ? 0.22 : 0.95);
           comboChain += 1;
           spawnVote();
 
@@ -1636,7 +1653,13 @@ const startScreen = document.getElementById('startScreen');
             highscoreEl.textContent = highscore;
           }
 
-          updateObstacleDifficulty();
+          syncObstacleCount();
+
+          if (mobilePerformanceMode) {
+            requestAnimationFrame(() => playSfx(pickupSfx, 0.16));
+          } else {
+            playSfx(pickupSfx, 0.95);
+          }
         }
       }
 
