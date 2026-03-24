@@ -374,7 +374,7 @@
         <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
           <div style="text-align:left; max-width:520px;">
             <div style="font-size:13px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.88; margin-bottom:10px;">Stimmenfang Wahlspiel</div>
-            <h1 style="font-size:54px; line-height:0.95; margin:0 0 10px 0;">Stimmenfang</h1><div style="margin-top:8px; font-size:13px; letter-spacing:0.12em; opacity:0.85;">Version 54</div>
+            <h1 style="font-size:54px; line-height:0.95; margin:0 0 10px 0;">Stimmenfang</h1><div style="margin-top:8px; font-size:13px; letter-spacing:0.12em; opacity:0.85;">Version 55</div>
             <p style="font-size:18px; margin:0 0 16px 0; opacity:0.95;">Sammle Stimmen, weich Hindernissen aus und hol dir den Platz im Scoreboard.</p>
           </div>
 
@@ -476,8 +476,8 @@ const startScreen = document.getElementById('startScreen');
     const voteImg = new Image();
     const hitImg = new Image();
 
-    const HIGHSCORE_KEY = 'stimmenfang_highscore_Version 54_1';
-    const LEADERBOARD_KEY = 'stimmenfang_leaderboard_Version 54_1';
+    const HIGHSCORE_KEY = 'stimmenfang_highscore_Version 55_1';
+    const LEADERBOARD_KEY = 'stimmenfang_leaderboard_Version 55_1';
     let highscore = Number(localStorage.getItem(HIGHSCORE_KEY) || 0);
     highscoreEl.textContent = highscore;
 
@@ -501,6 +501,7 @@ const startScreen = document.getElementById('startScreen');
     let boss = null;
     let boss10Spawned = false;
     let boss20Spawned = false;
+    let boss30Spawned = false;
     const INVULN_MS = 2000;
 
     const player = { left:false, right:false, up:false, down:false, jx:0, jy:0,
@@ -594,6 +595,7 @@ const startScreen = document.getElementById('startScreen');
       if (score >= 10000) obstacleTargetCount += 2;
       if (score >= 15000) obstacleTargetCount += 1;
       if (score >= 20000) obstacleTargetCount += 2;
+      if (score >= 25000) obstacleTargetCount += 2;
     }
 
     function randomRange(min, max) {
@@ -635,6 +637,13 @@ const startScreen = document.getElementById('startScreen');
         boss = createBoss(2);
         boss20Spawned = true;
         spawnFloatingText(canvas.width / 2, 110, 0, 'MINI-BOSS!', '#f97316', true, 32, 48);
+        return;
+      }
+
+      if (!boss30Spawned && score >= 30000) {
+        boss = createBoss(3);
+        boss30Spawned = true;
+        spawnFloatingText(canvas.width / 2, 110, 0, 'BOSS!', '#ef4444', true, 34, 52);
       }
     }
 
@@ -644,10 +653,10 @@ const startScreen = document.getElementById('startScreen');
         stage,
         x: pos.x,
         y: pos.y,
-        size: stage === 1 ? 64 : 78,
-        speed: stage === 1 ? 1.6 : 1.95,
+        size: stage === 1 ? 64 : (stage === 2 ? 78 : 92),
+        speed: stage === 1 ? 1.6 : (stage === 2 ? 1.95 : 2.15),
         spawnedAt: Date.now(),
-        hp: stage === 1 ? 2 : 3
+        hp: stage === 1 ? 2 : (stage === 2 ? 3 : 4)
       };
     }
 
@@ -1053,7 +1062,7 @@ const startScreen = document.getElementById('startScreen');
         y: pos.y,
         size: 30
       };
-      scheduleNextShieldSpawn();
+      nextShieldSpawnAt = Number.POSITIVE_INFINITY;
     }
 
     function resetObstacles() {
@@ -1074,6 +1083,7 @@ const startScreen = document.getElementById('startScreen');
         secondLifeCollected = false;
         boss10Spawned = false;
         boss20Spawned = false;
+        boss30Spawned = false;
       }
       player.x = 100;
       player.y = 250;
@@ -1947,6 +1957,7 @@ const startScreen = document.getElementById('startScreen');
       if (boss && distance(player, boss) < (player.size + boss.size) / 2) {
         if (shieldActive) {
           shieldActive = false;
+          scheduleNextShieldSpawn();
           invulnerableUntil = Date.now() + 900;
           boss.hp -= 1;
           spawnFloatingText(player.x, player.y - 42, 0, 'BLOCK', '#fdba74', true, 20, 24);
@@ -1971,6 +1982,7 @@ const startScreen = document.getElementById('startScreen');
         if (distance(player, obstacles[i]) < (player.size + obstacles[i].size) / 2) {
           if (shieldActive) {
             shieldActive = false;
+            scheduleNextShieldSpawn();
             comboChain = 0;
             invulnerableUntil = Date.now() + 900;
             obstacles[i].dx *= -1;
