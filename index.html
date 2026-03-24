@@ -282,24 +282,26 @@
       }
       .joystickWrap {
         display: flex !important;
-        margin-top: 2px;
-        padding-bottom: max(2px, env(safe-area-inset-bottom));
+        margin-top: 12px;
+        padding-bottom: max(8px, env(safe-area-inset-bottom));
+        min-height: 132px;
+        align-items: flex-end;
       }
       .joystick {
         width: 120px;
         height: 120px;
       }
       .joystick::before {
-        top: 10px;
-        bottom: 10px;
+        top: 14px;
+        bottom: 14px;
       }
       .joystick::after {
-        left: 10px;
-        right: 10px;
+        left: 14px;
+        right: 14px;
       }
       .joystickKnob {
-        width: 30px;
-        height: 30px;
+        width: 44px;
+        height: 44px;
       }
       .mobile-only {
         display: inline-flex !important;
@@ -327,9 +329,9 @@
           min-height: 24px !important;
         }
         #game {
-          width: min(100vw - 6px, calc(100svh - 148px));
-          max-width: min(100vw - 6px, calc(100svh - 148px));
-          max-height: calc(100svh - 148px);
+          width: min(100vw - 6px, calc(100svh - 198px));
+          max-width: min(100vw - 6px, calc(100svh - 198px));
+          max-height: calc(100svh - 198px);
         }
       }
       #gameWrap .hint {
@@ -372,7 +374,7 @@
         <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
           <div style="text-align:left; max-width:520px;">
             <div style="font-size:13px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.88; margin-bottom:10px;">Stimmenfang Wahlspiel</div>
-            <h1 style="font-size:54px; line-height:0.95; margin:0 0 10px 0;">Stimmenfang</h1><div style="margin-top:8px; font-size:13px; letter-spacing:0.12em; opacity:0.85;">Version 53</div>
+            <h1 style="font-size:54px; line-height:0.95; margin:0 0 10px 0;">Stimmenfang</h1><div style="margin-top:8px; font-size:13px; letter-spacing:0.12em; opacity:0.85;">Version 54</div>
             <p style="font-size:18px; margin:0 0 16px 0; opacity:0.95;">Sammle Stimmen, weich Hindernissen aus und hol dir den Platz im Scoreboard.</p>
           </div>
 
@@ -440,32 +442,15 @@
   <audio id="bgm3" src="track3.mp3" preload="auto"></audio>
 
   <script>
-    
-// === NEW FEATURES V53 ===
-let extraLifeCollected10k = false;
-let extraLifeCollected20k = false;
-let playerShield = false;
-
-function checkExtraLife() {
-  if (score >= 10000 && !extraLifeCollected10k) {
-    lives++;
-    extraLifeCollected10k = true;
-  }
-  if (score >= 20000 && !extraLifeCollected20k) {
-    lives++;
-    extraLifeCollected20k = true;
-  }
-}
-
-// Dynamic difficulty
-    let maxEnemies = 5;
-    let gameStartTime = Date.now();
-
-    function updateDifficulty() {
-      const elapsed = (Date.now() - gameStartTime) / 1000;
-      if (elapsed > 30) maxEnemies = 8;
-      if (elapsed > 60) maxEnemies = 10;
-    }
+    // Score-basierte Gegnerstaffelung
+    const BASE_ENEMY_COUNT = 4;
+    const GOLD_VOTE_CHANCE = 0.09;
+    const GOLD_VOTE_POINTS = 50;
+    const SHIELD_RESPAWN_MIN_MS = 10000;
+    const SHIELD_RESPAWN_MAX_MS = 16000;
+    const LIFE_MAX = 5;
+    const BOSS_REWARD_POINTS = 150;
+    const BOSS_DURATION_MS = 12000;
 
 const startScreen = document.getElementById('startScreen');
     const gameWrap = document.getElementById('gameWrap');
@@ -491,8 +476,8 @@ const startScreen = document.getElementById('startScreen');
     const voteImg = new Image();
     const hitImg = new Image();
 
-    const HIGHSCORE_KEY = 'stimmenfang_highscore_Version 53_1';
-    const LEADERBOARD_KEY = 'stimmenfang_leaderboard_Version 53_1';
+    const HIGHSCORE_KEY = 'stimmenfang_highscore_Version 54_1';
+    const LEADERBOARD_KEY = 'stimmenfang_leaderboard_Version 54_1';
     let highscore = Number(localStorage.getItem(HIGHSCORE_KEY) || 0);
     highscoreEl.textContent = highscore;
 
@@ -506,6 +491,16 @@ const startScreen = document.getElementById('startScreen');
     let currentPlayerName = 'Spieler';
     let gameOverShown = false;
     let invulnerableUntil = 0;
+    let shieldActive = false;
+    let nextShieldSpawnAt = 0;
+    let lifePickup = null;
+    let firstLifeSpawned = false;
+    let secondLifeSpawned = false;
+    let firstLifeCollected = false;
+    let secondLifeCollected = false;
+    let boss = null;
+    let boss10Spawned = false;
+    let boss20Spawned = false;
     const INVULN_MS = 2000;
 
     const player = { left:false, right:false, up:false, down:false, jx:0, jy:0,
@@ -519,13 +514,20 @@ const startScreen = document.getElementById('startScreen');
 
     const votes = [];
     const obstacles = [];
-    let obstacleTargetCount = 5;
+    let shieldPickup = null;
+    let obstacleTargetCount = BASE_ENEMY_COUNT;
 
     const tracks = [document.getElementById('bgm1')];
     const pickupSfx = document.getElementById('pickupSfx');
     const hitSfx = document.getElementById('hitSfx');
-    const pickupPool = [pickupSfx, pickupSfx.cloneNode(true), pickupSfx.cloneNode(true)];
-    const hitPool = [hitSfx, hitSfx.cloneNode(true)];
+    const pickupPool = [
+      pickupSfx,
+      pickupSfx.cloneNode(true),
+      pickupSfx.cloneNode(true),
+      pickupSfx.cloneNode(true),
+      pickupSfx.cloneNode(true)
+    ];
+    const hitPool = [hitSfx, hitSfx.cloneNode(true), hitSfx.cloneNode(true)];
     let pickupPoolIndex = 0;
     let hitPoolIndex = 0;
     let audioUnlocked = false;
@@ -553,21 +555,28 @@ const startScreen = document.getElementById('startScreen');
     }
 
 
+    function getReadySound(pool, indexRefName) {
+      const now = performance.now();
+      const ready = pool.find(sound => sound.paused || sound.ended || !sound.__busyUntil || sound.__busyUntil <= now);
+      if (ready) return ready;
+      const index = window[indexRefName] % pool.length;
+      window[indexRefName] = (window[indexRefName] + 1) % pool.length;
+      return pool[index];
+    }
+
     function playSfx(audioEl, volume = 1.0) {
       if (!audioEl) return;
       try {
         let sound = audioEl;
         if (audioEl === pickupSfx) {
-          sound = pickupPool[pickupPoolIndex % pickupPool.length];
-          pickupPoolIndex++;
+          sound = getReadySound(pickupPool, 'pickupPoolIndex');
         } else if (audioEl === hitSfx) {
-          sound = hitPool[hitPoolIndex % hitPool.length];
-          hitPoolIndex++;
+          sound = getReadySound(hitPool, 'hitPoolIndex');
         }
 
-        sound.pause();
-        sound.currentTime = 0;
         sound.volume = volume;
+        sound.currentTime = 0;
+        sound.__busyUntil = performance.now() + ((sound.duration && Number.isFinite(sound.duration) ? sound.duration : 0.18) * 1000);
         const p = sound.play();
         if (p && typeof p.catch === 'function') p.catch(() => {});
       } catch (e) {}
@@ -579,10 +588,107 @@ const startScreen = document.getElementById('startScreen');
     let scorePulseUntil = 0;
 
     function updateObstacleDifficulty() {
-      if (score >= 200) obstacleTargetCount = 6;
-      else if (score >= 120) obstacleTargetCount = 6;
-      else if (score >= 60) obstacleTargetCount = 5;
-      else obstacleTargetCount = 4;
+      obstacleTargetCount = BASE_ENEMY_COUNT;
+      if (score >= 2500) obstacleTargetCount += 1;
+      if (score >= 5000) obstacleTargetCount += 2;
+      if (score >= 10000) obstacleTargetCount += 2;
+      if (score >= 15000) obstacleTargetCount += 1;
+      if (score >= 20000) obstacleTargetCount += 2;
+    }
+
+    function randomRange(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function scheduleNextShieldSpawn() {
+      nextShieldSpawnAt = Date.now() + randomRange(SHIELD_RESPAWN_MIN_MS, SHIELD_RESPAWN_MAX_MS);
+    }
+
+    function maybeSpawnLifePickup() {
+      if (lifePickup || waitingForRestart || gameOverShown) return;
+
+      if (!firstLifeSpawned && score >= 2500 && score < 10000 && !firstLifeCollected) {
+        const pos = placeAwayFromPlayer(32);
+        lifePickup = { x: pos.x, y: pos.y, size: 28, tier: 1 };
+        firstLifeSpawned = true;
+        return;
+      }
+
+      if (!secondLifeSpawned && score >= 12500 && score < 20000 && !secondLifeCollected) {
+        const pos = placeAwayFromPlayer(32);
+        lifePickup = { x: pos.x, y: pos.y, size: 28, tier: 2 };
+        secondLifeSpawned = true;
+      }
+    }
+
+    function maybeSpawnBoss() {
+      if (boss || waitingForRestart || gameOverShown) return;
+
+      if (!boss10Spawned && score >= 10000) {
+        boss = createBoss(1);
+        boss10Spawned = true;
+        spawnFloatingText(canvas.width / 2, 110, 0, 'MINI-BOSS!', '#fb923c', true, 30, 44);
+        return;
+      }
+
+      if (!boss20Spawned && score >= 20000) {
+        boss = createBoss(2);
+        boss20Spawned = true;
+        spawnFloatingText(canvas.width / 2, 110, 0, 'MINI-BOSS!', '#f97316', true, 32, 48);
+      }
+    }
+
+    function createBoss(stage) {
+      const pos = { x: canvas.width - 140, y: 140 + Math.random() * (canvas.height - 280) };
+      return {
+        stage,
+        x: pos.x,
+        y: pos.y,
+        size: stage === 1 ? 64 : 78,
+        speed: stage === 1 ? 1.6 : 1.95,
+        spawnedAt: Date.now(),
+        hp: stage === 1 ? 2 : 3
+      };
+    }
+
+    function updateBoss() {
+      if (!boss) return;
+
+      const dx = player.x - boss.x;
+      const dy = player.y - boss.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      boss.x += (dx / dist) * boss.speed;
+      boss.y += (dy / dist) * boss.speed;
+
+      const r = boss.size / 2;
+      boss.x = Math.max(r, Math.min(canvas.width - r, boss.x));
+      boss.y = Math.max(r, Math.min(canvas.height - r, boss.y));
+
+      if (Date.now() - boss.spawnedAt >= BOSS_DURATION_MS) {
+        score += BOSS_REWARD_POINTS;
+        scoreEl.textContent = score;
+        if (score > highscore) {
+          highscore = score;
+          localStorage.setItem(HIGHSCORE_KEY, highscore);
+          highscoreEl.textContent = highscore;
+        }
+        spawnFloatingText(boss.x, boss.y - 20, BOSS_REWARD_POINTS, 'BOSS +150', '#fb923c', true, 28, 40);
+        votes.push({ x: boss.x, y: boss.y, size: 40, type: 'gold' });
+        boss = null;
+        syncObstacleCount();
+      }
+    }
+
+    function syncObstacleCount() {
+      updateObstacleDifficulty();
+
+      while (obstacles.length < obstacleTargetCount) {
+        spawnObstacle();
+      }
+
+      while (obstacles.length > obstacleTargetCount) {
+        obstacles.pop();
+      }
     }
 
     const mobilePerformanceMode = window.matchMedia('(pointer: coarse)').matches || /iPhone|iPad|Android/i.test(navigator.userAgent);
@@ -932,15 +1038,43 @@ const startScreen = document.getElementById('startScreen');
       for (let i = 0; i < 5; i++) spawnVote();
     }
 
+    function resetShieldPickup() {
+      shieldPickup = null;
+      shieldActive = false;
+      scheduleNextShieldSpawn();
+    }
+
+    function maybeSpawnShieldPickup() {
+      if (shieldActive || shieldPickup || waitingForRestart || gameOverShown) return;
+      if (Date.now() < nextShieldSpawnAt) return;
+      const pos = placeAwayFromPlayer(34);
+      shieldPickup = {
+        x: pos.x,
+        y: pos.y,
+        size: 30
+      };
+      scheduleNextShieldSpawn();
+    }
+
     function resetObstacles() {
       obstacles.length = 0;
-      updateObstacleDifficulty();
-      for (let i = 0; i < obstacleTargetCount; i++) spawnObstacle();
+      syncObstacleCount();
     }
 
     function rebuildRound() {
       resetVotes();
       resetObstacles();
+      resetShieldPickup();
+      lifePickup = null;
+      boss = null;
+      if (score === 0) {
+        firstLifeSpawned = false;
+        secondLifeSpawned = false;
+        firstLifeCollected = false;
+        secondLifeCollected = false;
+        boss10Spawned = false;
+        boss20Spawned = false;
+      }
       player.x = 100;
       player.y = 250;
       player.dx = 0;
@@ -972,11 +1106,13 @@ const startScreen = document.getElementById('startScreen');
     }
 
     function spawnVote() {
-      const pos = placeAwayFromPlayer(30);
+      const pos = placeAwayFromPlayer(34);
+      const isGold = Math.random() < GOLD_VOTE_CHANCE;
       votes.push({
         x: pos.x,
         y: pos.y,
-        size: 26
+        size: isGold ? 36 : 26,
+        type: isGold ? 'gold' : 'normal'
       });
     }
 
@@ -1457,6 +1593,18 @@ const startScreen = document.getElementById('startScreen');
       const invulnerable = Date.now() < invulnerableUntil;
       if (invulnerable && Math.floor(Date.now() / 120) % 2 === 0) return;
 
+      if (shieldActive) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(251, 146, 60, 0.95)';
+        ctx.lineWidth = 6;
+        ctx.shadowColor = 'rgba(249, 115, 22, 0.9)';
+        ctx.shadowBlur = 18;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.size * 0.62, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
       if (playerImg && playerImg.complete && playerImg.naturalWidth > 0) {
         const maxW = player.size * 1.38;
         const maxH = player.size * 1.55;
@@ -1480,21 +1628,127 @@ const startScreen = document.getElementById('startScreen');
 
     function drawVotes() {
       votes.forEach(v => {
+        const isGold = v.type === 'gold';
+        const pulse = isGold ? (1 + Math.sin(Date.now() / 140) * 0.14) : 1;
+        if (isGold) {
+          ctx.save();
+          ctx.shadowColor = 'rgba(250, 204, 21, 0.95)';
+          ctx.shadowBlur = 28;
+          ctx.strokeStyle = 'rgba(253, 224, 71, 0.95)';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.arc(v.x, v.y, v.size * 0.9 * pulse, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+
         if (voteImg.complete && voteImg.naturalWidth > 0) {
           ctx.save();
           ctx.imageSmoothingEnabled = false;
-          const drawW = v.size * 1.35;
-          const drawH = v.size * 1.6;
+          if (isGold) {
+            ctx.shadowColor = 'rgba(250, 204, 21, 1)';
+            ctx.shadowBlur = 24;
+            ctx.filter = 'hue-rotate(16deg) saturate(3) brightness(1.32)';
+          }
+          const drawW = v.size * 1.48 * pulse;
+          const drawH = v.size * 1.82 * pulse;
           ctx.drawImage(voteImg, v.x - drawW / 2, v.y - drawH / 2, drawW, drawH);
           ctx.restore();
         } else {
-          ctx.fillStyle = '#f8fafc';
-          ctx.fillRect(v.x - 12, v.y - 14, 24, 28);
-          ctx.fillStyle = '#111827';
+          ctx.save();
+          const w = (isGold ? 32 : 24) * pulse;
+          const h = (isGold ? 38 : 28) * pulse;
+          ctx.fillStyle = isGold ? '#facc15' : '#f8fafc';
+          ctx.fillRect(v.x - w / 2, v.y - h / 2, w, h);
+          ctx.fillStyle = isGold ? '#7c2d12' : '#111827';
           ctx.fillRect(v.x - 7, v.y - 6, 14, 2);
           ctx.fillRect(v.x - 7, v.y + 1, 14, 2);
+          if (isGold) {
+            ctx.strokeStyle = '#fde68a';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(v.x - w / 2 - 3, v.y - h / 2 - 3, w + 6, h + 6);
+          }
+          ctx.restore();
         }
       });
+    }
+
+    function drawShieldPickup() {
+      if (!shieldPickup) return;
+      const pulse = 1 + Math.sin(Date.now() / 140) * 0.08;
+      const size = shieldPickup.size * pulse;
+
+      ctx.save();
+      ctx.translate(shieldPickup.x, shieldPickup.y);
+      ctx.shadowColor = 'rgba(249, 115, 22, 0.9)';
+      ctx.shadowBlur = 20;
+      ctx.fillStyle = 'rgba(251, 146, 60, 0.24)';
+      ctx.beginPath();
+      ctx.arc(0, 0, size * 0.82, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#fdba74';
+      ctx.beginPath();
+      ctx.moveTo(0, -size * 0.72);
+      ctx.lineTo(size * 0.48, -size * 0.28);
+      ctx.lineTo(size * 0.34, size * 0.50);
+      ctx.lineTo(0, size * 0.82);
+      ctx.lineTo(-size * 0.34, size * 0.50);
+      ctx.lineTo(-size * 0.48, -size * 0.28);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = '#fff7ed';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawLifePickup() {
+      if (!lifePickup) return;
+      const pulse = 1 + Math.sin(Date.now() / 160) * 0.08;
+      const s = lifePickup.size * pulse;
+      ctx.save();
+      ctx.translate(lifePickup.x, lifePickup.y);
+      ctx.shadowColor = 'rgba(239, 68, 68, 0.9)';
+      ctx.shadowBlur = 18;
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.beginPath();
+      ctx.arc(0, 0, s * 0.9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.moveTo(0, s * 0.74);
+      ctx.bezierCurveTo(-s * 0.9, s * 0.18, -s * 0.86, -s * 0.46, -s * 0.34, -s * 0.40);
+      ctx.bezierCurveTo(-s * 0.10, -s * 0.82, s * 0.10, -s * 0.82, s * 0.34, -s * 0.40);
+      ctx.bezierCurveTo(s * 0.86, -s * 0.46, s * 0.9, s * 0.18, 0, s * 0.74);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawBoss() {
+      if (!boss) return;
+      const pulse = 1 + Math.sin(Date.now() / 110) * 0.06;
+      ctx.save();
+      ctx.translate(boss.x, boss.y);
+      ctx.shadowColor = boss.stage === 2 ? 'rgba(239, 68, 68, 0.9)' : 'rgba(249, 115, 22, 0.9)';
+      ctx.shadowBlur = 28;
+      ctx.fillStyle = boss.stage === 2 ? '#ef4444' : '#fb923c';
+      ctx.beginPath();
+      ctx.arc(0, 0, boss.size * 0.55 * pulse, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      ctx.beginPath();
+      ctx.arc(0, 0, boss.size * 0.30 * pulse, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fff7ed';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.fillStyle = '#111827';
+      ctx.fillRect(-boss.size * 0.12, -boss.size * 0.10, boss.size * 0.08, boss.size * 0.08);
+      ctx.fillRect(boss.size * 0.04, -boss.size * 0.10, boss.size * 0.08, boss.size * 0.08);
+      ctx.fillRect(-boss.size * 0.10, boss.size * 0.10, boss.size * 0.20, boss.size * 0.05);
+      ctx.restore();
     }
 
     function drawObstacles() {
@@ -1522,18 +1776,17 @@ const startScreen = document.getElementById('startScreen');
       return comboSteps[idx];
     }
 
-    function spawnFloatingText(x, y, points) {
-      if (mobilePerformanceMode) return;
+    function spawnFloatingText(x, y, points, customText = null, customColor = null, forceGlow = false, customSize = null, customMaxLife = null) {
       floatingTexts.push({
         x: x,
         y: y,
-        text: `+${points}`,
+        text: customText || `+${points}`,
         alpha: 1,
         life: 0,
-        maxLife: points >= 150 ? 34 : points >= 100 ? 30 : 26,
-        size: points >= 150 ? 30 : points >= 100 ? 26 : points >= 50 ? 22 : 18,
-        color: points >= 150 ? '#facc15' : points >= 100 ? '#fde047' : points >= 50 ? '#fef08a' : '#ffffff',
-        glow: points >= 100
+        maxLife: customMaxLife || (points >= 150 ? 34 : points >= 100 ? 30 : 26),
+        size: customSize || (points >= 150 ? 30 : points >= 100 ? 26 : points >= 50 ? 22 : (mobilePerformanceMode ? 16 : 18)),
+        color: customColor || (points >= 150 ? '#facc15' : points >= 100 ? '#fde047' : points >= 50 ? '#fef08a' : '#ffffff'),
+        glow: forceGlow || points >= 100
       });
     }
 
@@ -1634,16 +1887,16 @@ const startScreen = document.getElementById('startScreen');
 
       for (let i = votes.length - 1; i >= 0; i--) {
         if (distance(player, votes[i]) < (player.size + votes[i].size) / 2) {
-          const hitX = votes[i].x;
-          const hitY = votes[i].y;
+          const vote = votes[i];
+          const hitX = vote.x;
+          const hitY = vote.y;
+          const points = vote.type === 'gold' ? GOLD_VOTE_POINTS : getComboPoints();
           votes.splice(i, 1);
 
-          const points = getComboPoints();
           score += points;
           scoreEl.textContent = score;
           spawnFloatingText(hitX, hitY - 8, points);
           pulseScore();
-          playSfx(pickupSfx, mobilePerformanceMode ? 0.22 : 0.95);
           comboChain += 1;
           spawnVote();
 
@@ -1653,14 +1906,82 @@ const startScreen = document.getElementById('startScreen');
             highscoreEl.textContent = highscore;
           }
 
-          updateObstacleDifficulty();
+          syncObstacleCount();
+
+          if (mobilePerformanceMode) {
+            requestAnimationFrame(() => playSfx(pickupSfx, vote.type === 'gold' ? 0.24 : 0.16));
+          } else {
+            playSfx(pickupSfx, vote.type === 'gold' ? 1.0 : 0.95);
+          }
+        }
+      }
+
+      if (shieldPickup && distance(player, shieldPickup) < (player.size + shieldPickup.size) / 2) {
+        shieldActive = true;
+        shieldPickup = null;
+        comboChain = 0;
+        spawnFloatingText(player.x, player.y - 42, 0, 'SCHILD', '#fdba74', true, 22, 30);
+        if (mobilePerformanceMode) {
+          requestAnimationFrame(() => playSfx(pickupSfx, 0.20));
+        } else {
+          playSfx(pickupSfx, 0.75);
+        }
+      }
+
+      if (lifePickup && distance(player, lifePickup) < (player.size + lifePickup.size) / 2) {
+        lives = Math.min(LIFE_MAX, lives + 1);
+        livesEl.textContent = lives;
+        if (lifePickup.tier === 1) firstLifeCollected = true;
+        if (lifePickup.tier === 2) secondLifeCollected = true;
+        spawnFloatingText(player.x, player.y - 42, 0, '+1 LEBEN', '#f87171', true, 24, 34);
+        lifePickup = null;
+        if (mobilePerformanceMode) {
+          requestAnimationFrame(() => playSfx(pickupSfx, 0.18));
+        } else {
+          playSfx(pickupSfx, 0.72);
         }
       }
 
       if (Date.now() < invulnerableUntil) return;
 
+      if (boss && distance(player, boss) < (player.size + boss.size) / 2) {
+        if (shieldActive) {
+          shieldActive = false;
+          invulnerableUntil = Date.now() + 900;
+          boss.hp -= 1;
+          spawnFloatingText(player.x, player.y - 42, 0, 'BLOCK', '#fdba74', true, 20, 24);
+          if (boss.hp <= 0) {
+            score += BOSS_REWARD_POINTS;
+            scoreEl.textContent = score;
+            if (score > highscore) {
+              highscore = score;
+              localStorage.setItem(HIGHSCORE_KEY, highscore);
+              highscoreEl.textContent = highscore;
+            }
+            spawnFloatingText(boss.x, boss.y - 20, BOSS_REWARD_POINTS, 'BOSS DOWN', '#fb923c', true, 28, 40);
+            votes.push({ x: boss.x, y: boss.y, size: 40, type: 'gold' });
+            boss = null;
+          }
+          playSfx(hitSfx, mobilePerformanceMode ? 0.26 : 0.42);
+          return;
+        }
+      }
+
       for (let i = obstacles.length - 1; i >= 0; i--) {
         if (distance(player, obstacles[i]) < (player.size + obstacles[i].size) / 2) {
+          if (shieldActive) {
+            shieldActive = false;
+            comboChain = 0;
+            invulnerableUntil = Date.now() + 900;
+            obstacles[i].dx *= -1;
+            obstacles[i].dy *= -1;
+            obstacles[i].x += obstacles[i].dx * 6;
+            obstacles[i].y += obstacles[i].dy * 6;
+            playSfx(hitSfx, mobilePerformanceMode ? 0.3 : 0.45);
+            spawnFloatingText(player.x, player.y - 42, 0, 'BLOCK', '#fdba74', true, 20, 22);
+            return;
+          }
+
           waitingForRestart = true;
           gameRunning = false;
           comboChain = 0;
@@ -1674,7 +1995,10 @@ const startScreen = document.getElementById('startScreen');
           repositionVotesAfterHit();
           drawBackground();
           drawVotes();
+          drawLifePickup();
+          drawShieldPickup();
           drawObstacles();
+          drawBoss();
           drawPlayer();
           drawOverlay('Treffer! Neustart drücken');
           return;
@@ -1695,6 +2019,9 @@ const startScreen = document.getElementById('startScreen');
 
     function loop() {
       updateObstacleDifficulty();
+      maybeSpawnShieldPickup();
+      maybeSpawnLifePickup();
+      maybeSpawnBoss();
       const refillLimit = mobilePerformanceMode ? 1 : 99;
       let refillCount = 0;
       while (obstacles.length < obstacleTargetCount && refillCount < refillLimit) {
@@ -1704,10 +2031,14 @@ const startScreen = document.getElementById('startScreen');
       drawBackground();
       updatePlayer();
       updateObstacles();
+      updateBoss();
       updateFloatingTexts();
       checkCollisions();
       drawVotes();
+      drawLifePickup();
+      drawShieldPickup();
       drawObstacles();
+      drawBoss();
       drawPlayer();
       drawFloatingTexts();
       drawComboLabel();
@@ -1769,6 +2100,7 @@ const startScreen = document.getElementById('startScreen');
       cancelAnimationFrame(animationId);
       drawBackground();
       drawVotes();
+      drawShieldPickup();
       drawObstacles();
       drawPlayer();
       drawOverlay('Game Over – Punkte: ' + score);
