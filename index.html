@@ -374,7 +374,7 @@
         <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
           <div style="text-align:left; max-width:520px;">
             <div style="font-size:13px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.88; margin-bottom:10px;">Stimmenfang Wahlspiel</div>
-            <h1 style="font-size:54px; line-height:0.95; margin:0 0 10px 0;">Stimmenfang</h1><div style="margin-top:8px; font-size:13px; letter-spacing:0.12em; opacity:0.85;">Version 56</div>
+            <h1 style="font-size:54px; line-height:0.95; margin:0 0 10px 0;">Stimmenfang</h1><div style="margin-top:8px; font-size:13px; letter-spacing:0.12em; opacity:0.85;">Version 57</div>
             <p style="font-size:18px; margin:0 0 16px 0; opacity:0.95;">Sammle Stimmen, weich Hindernissen aus und hol dir den Platz im Scoreboard.</p>
           </div>
 
@@ -395,6 +395,10 @@
 
         <div class="card" style="margin-top:18px;text-align:left;background:rgba(0,0,0,0.22); border-color:rgba(255,255,255,0.10);">
           <h2 style="margin-bottom:10px;">Top 10 Scoreboard</h2>
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+            <div id="likeStatus" style="font-size:14px; opacity:0.9;">Gefällt <strong id="likeCount">0</strong> Spielern</div>
+            <button class="secondary" id="likeBtn" style="min-width:150px;">👍 Gefällt mir</button>
+          </div>
           <ol id="leaderboard" style="margin:0;padding-left:22px;"></ol>
         </div>
 
@@ -467,6 +471,8 @@ const startScreen = document.getElementById('startScreen');
     const volumeValue = document.getElementById('volumeValue');
     const playerNameInput = document.getElementById('playerName');
     const leaderboardEl = document.getElementById('leaderboard');
+    const likeBtn = document.getElementById('likeBtn');
+    const likeCountEl = document.getElementById('likeCount');
     const startPlayerPreview = document.getElementById('startPlayerPreview');
     const fullscreenBtn = document.getElementById('fullscreenBtn');
     const fullscreenWrap = document.getElementById('fullscreenWrap');
@@ -476,8 +482,8 @@ const startScreen = document.getElementById('startScreen');
     const voteImg = new Image();
     const hitImg = new Image();
 
-    const HIGHSCORE_KEY = 'stimmenfang_highscore_Version 56_1';
-    const LEADERBOARD_KEY = 'stimmenfang_leaderboard_Version 56_1';
+    const HIGHSCORE_KEY = 'stimmenfang_highscore_Version 57_1';
+    const LEADERBOARD_KEY = 'stimmenfang_leaderboard_Version 57_1';
     let highscore = Number(localStorage.getItem(HIGHSCORE_KEY) || 0);
     highscoreEl.textContent = highscore;
 
@@ -775,6 +781,31 @@ const startScreen = document.getElementById('startScreen');
       const top10 = entries.slice(0, 10);
       saveLeaderboard(top10);
       renderLeaderboard();
+    renderLikes();
+    }
+
+    const GLOBAL_LIKES_KEY = 'stimmenfang_global_likes_v57';
+    const GLOBAL_LIKED_KEY = 'stimmenfang_global_liked_v57';
+
+    function renderLikes() {
+      const likes = Number(localStorage.getItem(GLOBAL_LIKES_KEY) || 0);
+      if (likeCountEl) likeCountEl.textContent = likes;
+      if (likeBtn) {
+        const alreadyLiked = localStorage.getItem(GLOBAL_LIKED_KEY) === '1';
+        likeBtn.disabled = alreadyLiked;
+        likeBtn.textContent = alreadyLiked ? '👍 Geliked' : '👍 Gefällt mir';
+        likeBtn.style.opacity = alreadyLiked ? '0.7' : '1';
+        likeBtn.style.cursor = alreadyLiked ? 'default' : 'pointer';
+      }
+    }
+
+    function addLike() {
+      const alreadyLiked = localStorage.getItem(GLOBAL_LIKED_KEY) === '1';
+      if (alreadyLiked) return;
+      const likes = Number(localStorage.getItem(GLOBAL_LIKES_KEY) || 0) + 1;
+      localStorage.setItem(GLOBAL_LIKES_KEY, String(likes));
+      localStorage.setItem(GLOBAL_LIKED_KEY, '1');
+      renderLikes();
     }
 
 
@@ -2249,6 +2280,10 @@ const startScreen = document.getElementById('startScreen');
 
     window.addEventListener('resize', updateResponsiveUI);
     window.addEventListener('orientationchange', updateResponsiveUI);
+
+    if (likeBtn) {
+      likeBtn.addEventListener('click', addLike);
+    }
 
     loadDefaultPlayer();
     startPlayerPreview.onerror = () => { startPlayerPreview.style.display = 'none'; };
