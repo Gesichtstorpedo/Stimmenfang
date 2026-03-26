@@ -446,6 +446,9 @@
   <audio id="bgm3" src="track3.mp3" preload="auto"></audio>
 
   <script>
+const SUPABASE_URL = "https://qistdtnhptcupebyvvvq.supabase.co";
+const SUPABASE_KEY = "sb_publishable_EXrPEiPFp0LYJ9BsxWXFDw_enkYjw0W";
+
     // Score-basierte Gegnerstaffelung
     const BASE_ENEMY_COUNT = 4;
     const GOLD_VOTE_CHANCE = 0.09;
@@ -812,29 +815,7 @@ const startScreen = document.getElementById('startScreen');
       .then(() => renderLeaderboard());
     }
 
-    const GLOBAL_LIKES_KEY = 'stimmenfang_global_likes_v57';
-    const GLOBAL_LIKED_KEY = 'stimmenfang_global_liked_v57';
-
-    function renderLikes() {
-      const likes = Number(localStorage.getItem(GLOBAL_LIKES_KEY) || 0);
-      if (likeCountEl) likeCountEl.textContent = likes;
-      if (likeBtn) {
-        const alreadyLiked = localStorage.getItem(GLOBAL_LIKED_KEY) === '1';
-        likeBtn.disabled = alreadyLiked;
-        likeBtn.textContent = alreadyLiked ? '👍 Geliked' : '👍 Gefällt mir';
-        likeBtn.style.opacity = alreadyLiked ? '0.7' : '1';
-        likeBtn.style.cursor = alreadyLiked ? 'default' : 'pointer';
-      }
-    }
-
-    function addLike() {
-      const alreadyLiked = localStorage.getItem(GLOBAL_LIKED_KEY) === '1';
-      if (alreadyLiked) return;
-      const likes = Number(localStorage.getItem(GLOBAL_LIKES_KEY) || 0) + 1;
-      localStorage.setItem(GLOBAL_LIKES_KEY, String(likes));
-      localStorage.setItem(GLOBAL_LIKED_KEY, '1');
-      renderLikes();
-    }
+    
 
 
     function drawStartScreenBackground() {
@@ -2318,8 +2299,7 @@ const startScreen = document.getElementById('startScreen');
     drawOverlay('Bereit?');
   
 // ===== SUPABASE LIKE SYSTEM =====
-const SUPABASE_URL = "https://qistdtnhptcupebyvvvq.supabase.co";
-const SUPABASE_KEY = "sb_publishable_EXrPEiPFp0LYJ9BsxWXFDw_enkYjw0W";
+
 
 async function loadLikes() {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/global_stats?id=eq.1&select=total_likes`, {
