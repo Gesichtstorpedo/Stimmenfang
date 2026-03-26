@@ -683,6 +683,8 @@ const startScreen = document.getElementById('startScreen');
         score += BOSS_REWARD_POINTS;
         scoreEl.textContent = score;
         if (score > highscore) {
+          highscore = score;
+          highscoreEl.textContent = highscore;
         }
         spawnFloatingText(boss.x, boss.y - 20, BOSS_REWARD_POINTS, 'BOSS +150', '#fb923c', true, 28, 40);
         votes.push({ x: boss.x, y: boss.y, size: 40, type: 'gold' });
@@ -805,6 +807,7 @@ const startScreen = document.getElementById('startScreen');
       }
 
       await renderLeaderboard();
+      renderLikes();
     }
 
     async function renderLikes() {
@@ -851,15 +854,15 @@ const startScreen = document.getElementById('startScreen');
         }
 
         const data = await res.json();
-        const currentLikes = Number(data?.[0]?.total_likes || 0);
+        const currentLikes = Number((data && data[0] && data[0].total_likes) || 0);
         const newLikes = currentLikes + 1;
 
         const updateRes = await fetch(`${SUPABASE_URL}/rest/v1/global_stats?id=eq.1`, {
-          method: "PATCH",
+          method: 'PATCH',
           headers: {
             apikey: SUPABASE_KEY,
             Authorization: "Bearer " + SUPABASE_KEY,
-            "Content-Type": "application/json"
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({ total_likes: newLikes })
         });
@@ -2009,7 +2012,6 @@ const startScreen = document.getElementById('startScreen');
 
           if (score > highscore) {
             highscore = score;
-            localStorage.setItem(HIGHSCORE_KEY, highscore);
             highscoreEl.textContent = highscore;
           }
 
@@ -2062,7 +2064,9 @@ const startScreen = document.getElementById('startScreen');
             score += BOSS_REWARD_POINTS;
             scoreEl.textContent = score;
             if (score > highscore) {
-              }
+              highscore = score;
+              highscoreEl.textContent = highscore;
+            }
             spawnFloatingText(boss.x, boss.y - 20, BOSS_REWARD_POINTS, 'BOSS DOWN', '#fb923c', true, 28, 40);
             votes.push({ x: boss.x, y: boss.y, size: 40, type: 'gold' });
             boss = null;
@@ -2317,7 +2321,6 @@ const startScreen = document.getElementById('startScreen');
         restartBtn.style.display = 'none';
         restartBtn.textContent = 'Neustart';
         renderLeaderboard();
-    renderLikes();
         playerNameInput.focus();
         return;
       }
@@ -2359,6 +2362,7 @@ const startScreen = document.getElementById('startScreen');
     drawBackground();
     drawOverlay('Bereit?');
   
+    renderLikes();
 
 </script>
 
