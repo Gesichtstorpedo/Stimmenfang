@@ -807,30 +807,73 @@ const startScreen = document.getElementById('startScreen');
       await renderLeaderboard();
     }
 
-    const GLOBAL_LIKES_KEY = 'stimmenfang_global_likes_v57';
-    const GLOBAL_LIKED_KEY = 'stimmenfang_global_liked_v57';
+    async function renderLikes() {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/global_stats?id=eq.1&select=total_likes`, {
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: "Bearer " + SUPABASE_KEY
+          }
+        });
 
-    function renderLikes() {
-      const likes = Number(localStorage.getItem(GLOBAL_LIKES_KEY) || 0);
-      if (likeCountEl) likeCountEl.textContent = likes;
-      if (likeBtn) {
-        const alreadyLiked = localStorage.getItem(GLOBAL_LIKED_KEY) === '1';
-        likeBtn.disabled = alreadyLiked;
-        likeBtn.textContent = alreadyLiked ? '👍 Geliked' : '👍 Gefällt mir';
-        likeBtn.style.opacity = alreadyLiked ? '0.7' : '1';
-        likeBtn.style.cursor = alreadyLiked ? 'default' : 'pointer';
+        if (!res.ok) {
+          console.error('Likes laden fehlgeschlagen:', res.status, await res.text());
+          return;
+        }
+
+        const data = await res.json();
+        if (data && data[0] && likeCountEl) {
+          likeCountEl.textContent = data[0].total_likes;
+        }
+        if (likeBtn) {
+          likeBtn.disabled = false;
+          likeBtn.textContent = '👍 Gefällt mir';
+          likeBtn.style.opacity = '1';
+          likeBtn.style.cursor = 'pointer';
+        }
+      } catch (e) {
+        console.error('Likes laden fehlgeschlagen:', e);
       }
     }
 
-    function addLike() {
-      const alreadyLiked = localStorage.getItem(GLOBAL_LIKED_KEY) === '1';
-      if (alreadyLiked) return;
-      const likes = Number(localStorage.getItem(GLOBAL_LIKES_KEY) || 0) + 1;
-      localStorage.setItem(GLOBAL_LIKES_KEY, String(likes));
-      localStorage.setItem(GLOBAL_LIKED_KEY, '1');
-      renderLikes();
-    }
+    async function addLike() {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/global_stats?id=eq.1&select=total_likes`, {
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: "Bearer " + SUPABASE_KEY
+          }
+        });
 
+        if (!res.ok) {
+          console.error('Like lesen fehlgeschlagen:', res.status, await res.text());
+          return;
+        }
+
+        const data = await res.json();
+        const currentLikes = Number(data?.[0]?.total_likes || 0);
+        const newLikes = currentLikes + 1;
+
+        const updateRes = await fetch(`${SUPABASE_URL}/rest/v1/global_stats?id=eq.1`, {
+          method: "PATCH",
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: "Bearer " + SUPABASE_KEY,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ total_likes: newLikes })
+        });
+
+        if (!updateRes.ok) {
+          console.error('Like speichern fehlgeschlagen:', updateRes.status, await updateRes.text());
+          return;
+        }
+
+        if (likeCountEl) likeCountEl.textContent = String(newLikes);
+      } catch (e) {
+        console.error('Like speichern fehlgeschlagen:', e);
+      }
+    }
 
     function drawStartScreenBackground() {
       startCtx.imageSmoothingEnabled = false;
@@ -2274,6 +2317,7 @@ const startScreen = document.getElementById('startScreen');
         restartBtn.style.display = 'none';
         restartBtn.textContent = 'Neustart';
         renderLeaderboard();
+    renderLikes();
         playerNameInput.focus();
         return;
       }
@@ -2315,48 +2359,6 @@ const startScreen = document.getElementById('startScreen');
     drawBackground();
     drawOverlay('Bereit?');
   
-// ===== SUPABASE LIKE SYSTEM =====
-
-async function loadLikes() {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/global_stats?id=eq.1&select=total_likes`, {
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: "Bearer " + SUPABASE_KEY
-    }
-  });
-
-  const data = await res.json();
-  if (data && data[0]) {
-    likeCountEl.textContent = data[0].total_likes;
-  }
-}
-
-async function addLike() {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/global_stats?id=eq.1&select=total_likes`, {
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: "Bearer " + SUPABASE_KEY
-    }
-  });
-
-  const data = await res.json();
-  const newLikes = data[0].total_likes + 1;
-
-  await fetch(`${SUPABASE_URL}/rest/v1/global_stats?id=eq.1`, {
-    method: "PATCH",
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: "Bearer " + SUPABASE_KEY,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ total_likes: newLikes })
-  });
-
-  likeCountEl.textContent = newLikes;
-}
-
-likeBtn.addEventListener('click', addLike);
-setTimeout(loadLikes, 500);
 
 </script>
 
