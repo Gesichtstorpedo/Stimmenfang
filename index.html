@@ -682,7 +682,8 @@ const startScreen = document.getElementById('startScreen');
       if (Date.now() - boss.spawnedAt >= BOSS_DURATION_MS) {
         score += BOSS_REWARD_POINTS;
         scoreEl.textContent = score;
-        
+        if (score > highscore) {
+        }
         spawnFloatingText(boss.x, boss.y - 20, BOSS_REWARD_POINTS, 'BOSS +150', '#fb923c', true, 28, 40);
         votes.push({ x: boss.x, y: boss.y, size: 40, type: 'gold' });
         boss = null;
@@ -742,6 +743,12 @@ const startScreen = document.getElementById('startScreen');
             Authorization: "Bearer " + SUPABASE_KEY
           }
         });
+
+        if (!res.ok) {
+          console.error('Leaderboard laden fehlgeschlagen:', res.status, await res.text());
+          return [];
+        }
+
         const data = await res.json();
         return Array.isArray(data) ? data : [];
       } catch (e) {
@@ -768,7 +775,7 @@ const startScreen = document.getElementById('startScreen');
       highscore = Number(entries[0].score || 0);
       highscoreEl.textContent = String(highscore);
 
-      entries.forEach(entry => {
+      entries.slice(0, 10).forEach(entry => {
         const li = document.createElement('li');
         li.textContent = `${entry.name} – ${entry.score}`;
         leaderboardEl.appendChild(li);
@@ -777,6 +784,7 @@ const startScreen = document.getElementById('startScreen');
 
     async function addScoreToLeaderboard(name, score) {
       const cleanName = (name || 'Spieler').trim().slice(0, 16) || 'Spieler';
+
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/scores`, {
           method: 'POST',
@@ -784,44 +792,19 @@ const startScreen = document.getElementById('startScreen');
             apikey: SUPABASE_KEY,
             Authorization: "Bearer " + SUPABASE_KEY,
             'Content-Type': 'application/json',
-            'Prefer': 'return=representation'
+            'Prefer': 'return=minimal'
           },
           body: JSON.stringify([{ name: cleanName, score: Number(score) || 0 }])
         });
 
         if (!res.ok) {
-          const txt = await res.text();
-          console.error('Score speichern fehlgeschlagen:', res.status, txt);
+          console.error('Score speichern fehlgeschlagen:', res.status, await res.text());
         }
       } catch (e) {
         console.error('Score speichern fehlgeschlagen:', e);
       }
 
       await renderLeaderboard();
-    }
-
-    const GLOBAL_LIKES_KEY = 'stimmenfang_global_likes_v57';
-    const GLOBAL_LIKED_KEY = 'stimmenfang_global_liked_v57';
-
-    function renderLikes() {
-      const likes = Number(localStorage.getItem(GLOBAL_LIKES_KEY) || 0);
-      if (likeCountEl) likeCountEl.textContent = likes;
-      if (likeBtn) {
-        const alreadyLiked = localStorage.getItem(GLOBAL_LIKED_KEY) === '1';
-        likeBtn.disabled = alreadyLiked;
-        likeBtn.textContent = alreadyLiked ? '👍 Geliked' : '👍 Gefällt mir';
-        likeBtn.style.opacity = alreadyLiked ? '0.7' : '1';
-        likeBtn.style.cursor = alreadyLiked ? 'default' : 'pointer';
-      }
-    }
-
-    function addLike() {
-      const alreadyLiked = localStorage.getItem(GLOBAL_LIKED_KEY) === '1';
-      if (alreadyLiked) return;
-      const likes = Number(localStorage.getItem(GLOBAL_LIKES_KEY) || 0) + 1;
-      localStorage.setItem(GLOBAL_LIKES_KEY, String(likes));
-      localStorage.setItem(GLOBAL_LIKED_KEY, '1');
-      renderLikes();
     }
 
     const GLOBAL_LIKES_KEY = 'stimmenfang_global_likes_v57';
@@ -1981,7 +1964,11 @@ const startScreen = document.getElementById('startScreen');
           comboChain += 1;
           spawnVote();
 
-          
+          if (score > highscore) {
+            highscore = score;
+            localStorage.setItem(HIGHSCORE_KEY, highscore);
+            highscoreEl.textContent = highscore;
+          }
 
           syncObstacleCount();
 
@@ -2031,7 +2018,8 @@ const startScreen = document.getElementById('startScreen');
           if (boss.hp <= 0) {
             score += BOSS_REWARD_POINTS;
             scoreEl.textContent = score;
-            
+            if (score > highscore) {
+              }
             spawnFloatingText(boss.x, boss.y - 20, BOSS_REWARD_POINTS, 'BOSS DOWN', '#fb923c', true, 28, 40);
             votes.push({ x: boss.x, y: boss.y, size: 40, type: 'gold' });
             boss = null;
@@ -2328,8 +2316,6 @@ const startScreen = document.getElementById('startScreen');
     drawOverlay('Bereit?');
   
 // ===== SUPABASE LIKE SYSTEM =====
-const SUPABASE_URL = "https://qistdtnhptcupebyvvvq.supabase.co";
-const SUPABASE_KEY = "sb_publishable_EXrPEiPFp0LYJ9BsxWXFDw_enkYjw0W";
 
 async function loadLikes() {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/global_stats?id=eq.1&select=total_likes`, {
